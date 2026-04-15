@@ -2,6 +2,7 @@ package com.aishwary.authsystem.controller;
 
 import com.aishwary.authsystem.dto.*;
 import com.aishwary.authsystem.model.RefreshToken;
+import com.aishwary.authsystem.model.User;
 import com.aishwary.authsystem.repository.RefreshTokenRepository;
 import com.aishwary.authsystem.security.JwtService;
 import com.aishwary.authsystem.service.AuthService;
@@ -18,23 +19,34 @@ public class AuthController {
     private final JwtService jwtService;
 
     @PostMapping("/register")
-    public ApiResponse<?> register(@Valid @RequestBody RegisterRequest request) {
-        authService.register(request);
-        return new ApiResponse<>("success", "User registered successfully", null);
+    public ApiResponse<User> register(@Valid @RequestBody RegisterRequest request) {
+        User savedUser = authService.register(request);
+        return new ApiResponse<>("success", "User registered successfully", savedUser);
     }
 
     @PostMapping("/login")
-    public ApiResponse<?> login(@RequestBody LoginRequest request) {
-        String token = String.valueOf(authService.login(request));
-        return new ApiResponse<>("success", "Login successful", token);
+    public ApiResponse<AuthResponse> login(@RequestBody LoginRequest request) {
+        AuthResponse response = authService.login(request);
+        return new ApiResponse<>("success", "Login successful", response);
     }
 
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody RefreshRequest request) {
+    public ApiResponse<AuthResponse> refresh(@RequestBody RefreshRequest request) {
         RefreshToken token = refreshTokenRepo.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new RuntimeException(("Invalid refresh token")));
-        if (token.getExpiryDate() < System.currentTimeMillis()) throw new RuntimeException("Refresh token expired");
-        String newAccessToken = jwtService.generateToken(token.getUser().getEmail());
-        return new AuthResponse(newAccessToken, request.getRefreshToken());
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+        if (token.getExpiryDate() < System.currentTimeMillis())
+            throw new RuntimeException("Refresh token expired");
+        User user = token.getUser();
+        String newAccessToken = jwtService.generateToken(user.getEmail());
+        AuthResponse response = new AuthResponse(
+                user.getId(),
+                newAccessToken,
+                request.getRefreshToken()
+        );
+        return new ApiResponse<>(
+                "success",
+                "Access token refreshed successfully",
+                response
+        );
     }
 }
