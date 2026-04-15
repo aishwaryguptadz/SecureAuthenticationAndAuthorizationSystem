@@ -1,9 +1,13 @@
 package com.aishwary.authsystem.service;
 
+import com.aishwary.authsystem.dto.AuthResponse;
+import com.aishwary.authsystem.dto.LoginRequest;
 import com.aishwary.authsystem.dto.RegisterRequest;
+import com.aishwary.authsystem.model.RefreshToken;
 import com.aishwary.authsystem.model.Role;
 import com.aishwary.authsystem.model.User;
 import com.aishwary.authsystem.repository.UserRepository;
+import com.aishwary.authsystem.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,6 +17,8 @@ import org.springframework.stereotype.Service;
 public class AuthService {
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     public String register(RegisterRequest request) {
         if (userRepo.existsByEmail((request.getEmail()))) return "Email already registered";
@@ -25,5 +31,14 @@ public class AuthService {
                 .build();
         userRepo.save(user);
         return "User registered successfully";
+    }
+
+    public AuthResponse login(LoginRequest request) {
+        User user = userRepo.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) throw new RuntimeException("Invalid password");
+        String accessToken = jwtService.generateToken(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.createToken(user);
+        return new AuthResponse(accessToken, refreshToken.getToken());
     }
 }
