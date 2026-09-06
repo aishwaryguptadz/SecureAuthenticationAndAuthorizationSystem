@@ -41,13 +41,4 @@ public class AuthService {
         RefreshToken refreshToken = refreshTokenService.createToken(user);
         return new AuthResponse(user.getId(), accessToken, refreshToken.getToken());
     }
-
-    public AuthResponse login(LoginRequest request) {
-        User user = userRepo.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) throw new RuntimeException("Invalid password");
-        String accessToken = jwtService.generateToken(user.getEmail());
-        RefreshToken refreshToken = refreshTokenService.createToken(user);
-        return new AuthResponse(accessToken, refreshToken.getToken());
-    }
 }
